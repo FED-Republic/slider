@@ -1,3 +1,6 @@
+# Env
+.idea
+
 # Node
 node_modules
 test/results
@@ -5,6 +8,9 @@ test/coverage
 
 # Production
 dist
+
+# Temp
+_bp-*
 
 ## OS X
 .DS_Store
