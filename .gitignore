@@ -11,6 +11,7 @@ dist
 
 # Temp
 _bp-*
+temp
 
 ## OS X
 .DS_Store

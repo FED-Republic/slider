@@ -1,19 +1,126 @@
 /**
  * @section Base Styles
  */
+.fg {
+    background-color: #ccc;
+    border: 8px solid #fff;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+    margin: 0;
+    overflow: hidden;
+    position: relative;
 
-body {
-	font-size: 125%;
-	margin: 0 auto;
-	max-width: 42em;
-	width: 88%;
 
-	background-color: pink;
-}
+    //TODO: reserve empty placeholder
+    //height: $thumb-size;
+    //padding-bottom: $mask-padding;
 
-input,
-textarea,
-select,
-button {
-	font: inherit;
+    ul {
+        @include mix-reset-list;
+    }
+
+    img {
+        max-width: 100%;
+    }
+
+    &-galley-wrapper,
+    &-nav-wrapper {
+        position: relative;
+    }
+
+    &-galley-wrapper {
+        padding-bottom: 56.25%;
+    }
+
+    &-nav-wrapper {
+        height: $thumb-size;
+    }
+
+    &-galley-list,
+    &-nav-list {
+        min-width: 100%;
+        position: absolute;
+        left: 0;
+        white-space: nowrap;
+        font-size: 0;
+    }
+
+    &-galley {
+        &-list {
+            transition: 200ms;
+        }
+
+        &-item {
+            display: inline-block;
+            min-width: 100%;
+            padding-bottom: 56.25%;
+            position: relative;
+        }
+    }
+
+    &-btn {
+        &-prev,
+        &-next {
+            @include mix-absolute-vertical-center;
+
+            border: solid black;
+            border-width: 0 4px 4px 0;
+            cursor: pointer;
+            margin-top: -$thumb-size/2;
+            padding: 17px;
+            z-index: 2;
+            transition: all 0.8s;
+
+            &:hover {
+                &:after {
+                    content: "";
+                    position: absolute;
+                    height: 100%;
+                    width: 100%;
+                    background: white;
+                    opacity: 0.2;
+                    left: 0;
+                    top: 0;
+                }
+            }
+        }
+
+        &-prev {
+            left: 20px;
+            transform: rotate(135deg);
+
+            &:active {
+                left: 25px;
+                transition: 0s
+            }
+        }
+
+        &-next {
+            right: 20px;
+            transform: rotate(-45deg);
+
+            &:active {
+                right: 25px;
+                transition: 0s
+            }
+        }
+    }
+
+
+    &-nav {
+        position: relative;
+        overflow: hidden;
+
+        &-item {
+            display: inline-block;
+            min-width: $thumb-size;
+            min-height: $thumb-size;
+        }
+    }
+
+
+    &-picture {
+        @include mix-absolute-center;
+
+        max-height: 100%;
+    }
 }

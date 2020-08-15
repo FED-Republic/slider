@@ -2,12 +2,33 @@
 <html>
 <head>
 	<title>Slider</title>
+	<style>
+		/*
+		* Pre style page
+		*/
+
+		body {
+			font-size: 125%;
+			margin: 0 auto;
+			max-width: 42em;
+			text-align: center;
+		}
+	</style>
 	<link rel="stylesheet" type="text/css" href="css/slider.css">
 </head>
 <body>
 	<h1>Slider</h1>
-
+	<div class="my-gallery"></div>
+    <hr>
+    <div class="my-gallery"></div>
 	<!-- Scripts -->
 	<script src="js/slider.js"></script>
+	<script>
+		let flickrGallery = new flickrGallerySlider({
+		    selector: ".my-gallery",
+            apiKey: "d730e1b0b485148747900002e7da1d08",
+		    tags: 'dogs'
+		})
+	</script>
 </body>
 </html>
