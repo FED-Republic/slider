@@ -22,7 +22,7 @@
         perPage: 15,
         slideNumber: 0,
         preload: {
-            range: 2 // number or false to disable
+            range: 5 // number or false to disable
         },
         classToAdd: "fg",
         classToComplete: "fg-ready",
@@ -49,8 +49,11 @@
         return {
             state: {
                 currentSlide: 1,
+                slidesNumber: 0,
                 galleryNode: null,
-                galleryList: null,
+                galleryListNode: null,
+                navigationListNode: null,
+                navigationNodes:[],
                 page: 1
             },
             /**
@@ -122,89 +125,135 @@
             },
 
             /**
+             * Prepare Gallery and Navigation images
+             * @param {Array} imageList
+             */
+
+            _addImages(imageList) {
+                let images = '',
+                    thumbs = '',
+                    imagesElements = document.createElement('template'),
+                    tumbsElements = document.createElement('template'),
+                    lazyLoad = 'loading="lazy"',
+                    extraClass = 'fg-collapsed';
+
+                for (let i = 0; i < imageList.length; i++) {
+                    if (this.state.page === 1) {
+                        switch (i) {
+                            case 0:
+                                // First visible frame
+                                extraClass = 'fg-active';
+                                lazyLoad = '';
+                                break;
+                            case 1:
+                                // Next prepared frame
+                                extraClass = 'fg-item-next';
+                                lazyLoad = '';
+                                break;
+                            default:
+                                extraClass = 'fg-collapsed';
+                                lazyLoad = 'loading="lazy"';
+                        }
+                    }
+                    // @formatter:off
+                    // Image list HTML
+                    images+= '<li class="fg-galley-item ' + extraClass +'" data-tile ="'+ imageList[i].title +'">' +
+                                '<img class="fg-picture" src="' + imageList[i].image + '" alt="'+ imageList[i].title + '"' + lazyLoad + '>'+
+                            '</li>';
+
+                    // Thumbnail list HTML
+                    if ( this.options.thumb === true){
+                        if(this.state.page !== 1 || i !==0) {
+                            extraClass ='';
+                        } else {
+                            extraClass ='fg-active';
+                        }
+
+                        thumbs+= '<li class="fg-nav-item '+ extraClass +'">' +
+                                    '<img class="fg-nav-image" src="' + imageList[i].thumb + '" alt="'+ imageList[i].title + '" >'+
+                                 '</li>';
+                    }
+                    // @formatter:on
+                }
+
+                // Append images on the page
+                imagesElements.innerHTML = images;
+                tumbsElements.innerHTML = thumbs;
+                this.state.galleryListNode.appendChild(imagesElements.content);
+                this.state.navigationListNode.appendChild(tumbsElements.content);
+
+                // Update State
+                this.state.slidesNumber += imageList.length;
+                this.state.navigationNodes = this.state.navigationListNode.querySelectorAll('.'+ this.options.selectors.navItemClass);
+            },
+            /**
              * Prepare HTML
              * @param {Array} imageList
              */
             _prepareInnerHtml: function (galleryNode, imageList) {
                 // @formatter:off
-            let gallery = '',
-                images = '<li class="fg-galley-item fg-item-prev fg-blanc"></li>',
-                navigation = '',
-                thumbs = '',
-                lazyLoad ='',
-                extraClass ='';
+                let gallery = '',
+                    navigation = '';
 
-            for (let i = 0; i < imageList.length; i++) {
-                switch(i) {
-                    case 0:
-                        // First visible frame
-                        extraClass ='fg-active';
-                        lazyLoad ='';
-                        break;
-                    case 1:
-                        // Next prepared frame
-                        extraClass ='fg-item-next';
-                        lazyLoad ='';
-                        break;
-                    default:
-                        extraClass ='fg-collapsed';
-                        lazyLoad ='loading="lazy"';
+                if ( this.options.navigation === true){
+                    navigation = '<div class="fg-nav-wrapper">' +
+                                    '<ul class="fg-nav-list"></ul>';
+                                '</div>';
                 }
 
-                // Image list HTML
-                images+= '<li class="fg-galley-item ' + extraClass +'" data-tile ="'+ imageList[i].title +'">' +
-                    '<img class="fg-picture" src="' + imageList[i].image + '" alt="'+ imageList[i].title + '"' + lazyLoad + '>'+
-                    '</li>';
-
-                // Thumbnail list HTML
-                if ( this.options.thumb === true &&  this.options.navigation === true){
-                    switch(i) {
-                        case 0:
-                            // First visible frame
-                            extraClass ='fg-active';
-                            break;
-                        default:
-                            extraClass ='';
-                    }
-                    thumbs+= '<li class="fg-nav-item">' +
-                        '<img class="fg-nav-image '+ extraClass +'" src="' + imageList[i].thumb + '" alt="'+ imageList[i].title + '" loading="lazy" >'+
-                        '</li>';
-                }
-            }
-
-            thumbs = '<ul class="fg-nav-list">' + thumbs + '</ul>';
-            if ( this.options.navigation === true){
-                navigation = '<span class="fg-btn-prev fn-btn-disabled"></span>' +
-                    '<span class="fg-btn-next"></span>' +
-                    '<div class="fg-nav-wrapper">' +
-                    thumbs +
-                    '</div>';
-            }
-
-            gallery = '<div class="fg-galley-wrapper">' +
-                '<ul class="fg-galley-list">' +
-                images +
-                '</ul>' +
-                '</div>' +
-                navigation;
-            // @formatter:on
-
+                gallery = '<div class="fg-galley-wrapper">' +
+                                '<ul class="fg-galley-list">' +
+                                    '<li class="fg-galley-item fg-item-prev fg-blanc"></li>' +
+                                '</ul>' +
+                            '</div>' +
+                            '<span class="fg-btn-prev"></span>' +
+                            '<span class="fg-btn-next"></span>' +
+                            '<div class="fg-nav-wrapper">' +
+                                navigation +
+                            '</div>';
+                // @formatter:on
                 galleryNode.innerHTML = gallery;
             },
 
             /**
-             * Animate thumb list movement, done for position change
-             * @param {Element} elem Dom Element object
+             * Align navigation
              * @param {Number} destinationSlide
              */
-            _slideThumbs: function (elem, destinationSlide) {
-                elem.style.left = (destinationSlide * 100) + '%';
-                return destinationSlide;
+            _alignNaviagtion: function (destinationSlide) {
+                let navigationGallery = this.state.galleryNode.querySelector('.' + 'fg-nav-list'),
+                    wrapperW = this.state.galleryNode.querySelector('.' + 'fg-nav-wrapper').offsetWidth,
+                    galleryW = navigationGallery.offsetWidth,
+                    slideNumber = this.state.slidesNumber,
+                    slideW = galleryW / slideNumber,
+                    destinationCenter = destinationSlide * slideW + slideW / 2,
+                    position = 0;
+
+                // Slide navigation. Better to move in separate method to call on windows resize
+                if (wrapperW / 2 < destinationCenter && galleryW - destinationCenter > wrapperW / 2) {
+                    position = -(destinationCenter - wrapperW / 2);
+                    navigationGallery.style.left = position + "px";
+                } else if (galleryW - destinationCenter < wrapperW / 2){
+                    position = -(galleryW - wrapperW);
+                    navigationGallery.style.left = position + "px";
+                }
+            },
+
+            /**
+             * Animate thumb list movement, done for position change
+             * @param {Number} destinationSlide
+             */
+            _slideThumbs: function (destinationSlide) {
+                let navigationGallery = this.state.galleryNode.querySelector('.' + 'fg-nav-list'),
+                    navNodes = Array.prototype.slice.call(navigationGallery.children);
+
+                navNodes[this.state.currentSlide - 1].removeClass("fg-active");
+                navNodes[destinationSlide].addClass("fg-active");
+                this._alignNaviagtion(destinationSlide);
             },
 
             /**
              * Animate gallery list movement
-             * @param {Element} galleryElem Dom Element object
+             * @param {Element} galleryNode Dom Element object
              * @param {Number} destinationSlide
              */
             _slideGallery: function (galleryNode, destinationSlide) {
@@ -213,30 +262,43 @@
                     oldPrevious = galleryList[this.state.currentSlide - 1],
                     oldNext = galleryList[this.state.currentSlide + 1],
                     oldActive = galleryList[this.state.currentSlide],
-
                     newPrevious = galleryList[destinationSlide - 1],
                     newNext = galleryList[destinationSlide + 1],
                     newActive = galleryList[destinationSlide];
-
 
                 if (destinationSlide < 1) {
                     this.state.currentSlide = 1;
                     return 1;
                 }
 
+                if (destinationSlide > galleryList.length - 1 || destinationSlide === this.state.currentSlide) {
+                    return this.state.currentSlide;
+                }
+
                 // Clean Previous structure
-                oldPrevious.replaceClass(selector.galleryPreviousItem,selector.collapsedItem);
-                oldNext.replaceClass(selector.galleryNextItem,selector.collapsedItem);
-                oldActive.replaceClass(selector.active,selector.collapsedItem);
+                oldPrevious.replaceClass(selector.galleryPreviousItem, selector.collapsedItem);
+                if (typeof oldNext !== "undefined") oldNext.replaceClass(selector.galleryNextItem, selector.collapsedItem);
+                oldActive.replaceClass(selector.active, selector.collapsedItem);
+
+                // Lazy lazy load
+                if (destinationSlide > 1 && destinationSlide < galleryList.length - 1) {
+                    newPrevious.querySelector('.' + selector.galleryImage).setAttribute("loading", "eager");
+                    newNext.querySelector('.' + selector.galleryImage).setAttribute("loading", "eager");
+                    newActive.querySelector('.' + selector.galleryImage).setAttribute("loading", "eager");
+                }
 
                 //Build new structure
+                newPrevious.replaceClass(selector.collapsedItem, selector.galleryPreviousItem);
+                if (typeof newNext !== "undefined") newNext.replaceClass(selector.collapsedItem, selector.galleryNextItem);
+                newActive.replaceClass(selector.collapsedItem, selector.active);
 
-                newPrevious.replaceClass(selector.collapsedItem,selector.galleryPreviousItem);
-                newNext.replaceClass(selector.collapsedItem,selector.galleryNextItem);
-                newActive.replaceClass(selector.collapsedItem,selector.active);
-
+                this._slideThumbs(destinationSlide - 1);
                 this.state.currentSlide = destinationSlide;
-                return destinationSlide;
+
+                //Check for more images
+                if( this.state.slidesNumber - this.state.currentSlide < this.options.preload.range){
+                    this._updateGallery();
+                }
             },
 
             /**
@@ -248,11 +310,22 @@
                     if (hasClass(e.target, 'fg-btn-prev')) {
                         console.log("Previous step");
                         self._slideGallery(galleryNode, self.state.currentSlide - 1);
-                    } else if (hasClass(e.target, 'fg-btn-next')) {
+                    }
+                    if (hasClass(e.target, 'fg-btn-next')) {
                         console.log("Next step");
                         self._slideGallery(galleryNode, self.state.currentSlide + 1);
                     }
+                    if (hasClass(e.target, 'fg-nav-item')) {
+                        console.log("Navigate to index");
+                        self._slideGallery(galleryNode, Array.prototype.slice.call(self.state.navigationNodes).indexOf(e.target) + 1);
+                    }
                 }, false);
+            },
+
+            _initState(element, images) {
+                this.state.galleryNode = element;
+                this.state.galleryListNode = element.querySelector("." + this.options.selectors.galleryList);
+                this.state.navigationListNode = element.querySelector("." + this.options.selectors.navListClass);
             },
 
             /**
@@ -260,27 +333,33 @@
              */
             _createGallery: function (element) {
                 let self = this;
-                //console.log("Scoped var= " + attached);
                 // Load data and build HTML
                 self._galleryData(self._galleryUrl(self.options.tags))
                     .then(images => {
-                        console.log(element);
-                        let galleryNode = element;
-                        self.state.galleryNode = element;
-                        self.options.galleryNode = element;
-                        console.log(self);
-                        // Decoration class
-                        galleryNode.classList.add(this.options.classToAdd);
-
-
-                        self.options.slideNumber = images.length;
-                        self._prepareInnerHtml(galleryNode, images);
-                        self.state.galleryList = galleryNode.querySelectorAll("." + self.options.selectors.galleryList);
-                        //Complete Decoration class
-                        galleryNode.classList.add(this.options.classToComplete);
+                        // Create gallery
+                        self._prepareInnerHtml(element, images);
+                        self._initState(element, images);
+                        self._addImages(images);
 
                         //Bind active elements events
-                        self._bindEvents(galleryNode);
+                        self._bindEvents(element);
+
+                        //Complete Decoration class
+                        element.classList.add(this.options.classToComplete);
+                    });
+            },
+
+            /**
+             * Update Gallery
+             */
+
+            _updateGallery: function () {
+                let self = this;
+                self.state.page++;
+
+                self._galleryData(self._galleryUrl(self.options.tags))
+                    .then(images => {
+                        self._addImages(images);
                     });
             }
         };
@@ -318,10 +397,10 @@
     };
 
     /**
-     * Helper to add class name
+     * Helper to replace class name
      * @private
      */
-    Element.prototype.replaceClass =  function (removeClass, addClass) {
+    Element.prototype.replaceClass = function (removeClass, addClass) {
         this.classList.remove(removeClass);
         this.classList.add(addClass);
         return this;
@@ -331,7 +410,7 @@
      * Helper to add class name
      * @private
      */
-    Element.prototype.addClas =  function (addClass) {
+    Element.prototype.addClass = function (addClass) {
         this.classList.add(addClass);
         return this;
     };
@@ -340,7 +419,7 @@
      * Helper to remove class name
      * @private
      */
-    Element.prototype.removeClass =  function (removeClass) {
+    Element.prototype.removeClass = function (removeClass) {
         this.classList.remove(removeClass);
         return this;
     };
@@ -363,14 +442,15 @@
     Plugin.prototype = {
         init: function () {
             let self = this;
-            // find all matching DOM elements.
-            // makes `.selectors` object available to instance.
+
+            // find all matching DOM elements and create separate instance for every.
             document.querySelectorAll(self.options.gallerySelector).forEach(function (element) {
                 let newGallery = Object.assign(new gallery, {options: self.options});
-                console.log(newGallery);
+                // Decoration class
+                element.addClass(self.options.classToAdd);
+
                 newGallery.state.galleryNode = element;
                 newGallery._createGallery(element);
-                //console.log(newGallery)
             });
         },
 

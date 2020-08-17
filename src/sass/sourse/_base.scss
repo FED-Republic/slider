@@ -2,7 +2,6 @@
  * @section Base Styles
  */
 .fg {
-    background-color: #ccc;
     border: 8px solid #fff;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
     margin: 0;
@@ -28,6 +27,7 @@
     }
 
     &-galley-wrapper {
+        background-color: #ccc;
         padding-bottom: 56.25%;
     }
 
@@ -96,21 +96,21 @@
         }
 
         &-prev {
-            left: 20px;
+            left: 25px;
             transform: rotate(135deg);
 
             &:active {
-                left: 25px;
+                left: 30px;
                 transition: 0s
             }
         }
 
         &-next {
-            right: 20px;
+            right: 25px;
             transform: rotate(-45deg);
 
             &:active {
-                right: 25px;
+                right: 30px;
                 transition: 0s
             }
         }
@@ -118,14 +118,45 @@
 
 
     &-nav {
-        position: relative;
-        overflow: hidden;
+        &-wrapper{
+            position: relative;
+            user-select: none;
+        }
+
+        &-list{
+            overflow: hidden;
+        }
 
         &-item {
             display: inline-block;
+            cursor: pointer;
             min-width: $thumb-size;
             min-height: $thumb-size;
+            position: relative;
+
+            &.fg-active {
+                box-shadow: inset 0px -2px 1px 0px rgba(255, 0, 0, 1);
+
+                .fg-nav-image {
+                    max-width: calc(100% - 8px);
+                    left: 50%;
+                    position: absolute;
+                    transform: translate(-50%, 0%);
+                    top: 0;
+                    transition: 0s
+                }
+
+            }
         }
+
+
+        &-image {
+            @include mix-absolute-center;
+            transition: 300ms;
+            pointer-events: none;
+
+        }
+
     }
 
 
