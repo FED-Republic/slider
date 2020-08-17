@@ -12,37 +12,281 @@
     'use strict';
 
     let defaults = {
-        BASEURL: 'https://api.flickr.com/services/rest/?method=',
+        baseUrl: 'https://api.flickr.com/services/rest/?method=',
         apiKey: 'd730e1b0b485148747900002e7da1d08',
         tags: "cats",
-        selector: '.flicker-gallery',
+        gallerySelector: '.flicker-gallery',
         animationSpeed: 250,
         thumb: true,
         navigation: true,
-        currentSlide: 1,
+        perPage: 15,
         slideNumber: 0,
         preload: {
             range: 2 // number or false to disable
         },
         classToAdd: "fg",
         classToComplete: "fg-ready",
-        galleryStructure: {
-            galleryListClass: '.fg-list',
-            galleryItemClass: '.fg-item',
-            galleryImageClass: '.fg-picture',
-            navListClass: '.fg-nav-list',
-            navItemClass: '.fg-nav-item',
-            navImage: '.fg-nav-image'
-        },
-        galleryNavigation: {
-            generate: true, // false to disable
-            navListClass: '.fg-nav-list',
-            navItemClass: '.fg-nav-item',
-            navImage: '.fg-nav-image',
-            prevClass: '.fg-prev-btn',
-            nextClass: '.fg-next-btn'
+        selectors: {
+            galleryList: 'fg-galley-list',
+            galleryItem: 'fg-galley-item',
+            active: 'fg-active',
+            galleryPreviousItem: 'fg-item-prev',
+            galleryNextItem: 'fg-item-next',
+            collapsedItem: 'fg-collapsed',
+            galleryImage: 'fg-picture',
+            navListClass: 'fg-nav-list',
+            navItemClass: 'fg-nav-item',
+            navActiveItem: 'fg-nav-item-active',
+            navImage: 'fg-nav-image',
+            prevBtn: 'fg-btn-prev',
+            nextBtn: 'fg-btn-next',
+            btnDisabled: 'fg-btn-disabled'
         }
     };
+
+
+    let gallery = function () {
+        return {
+            state: {
+                currentSlide: 1,
+                galleryNode: null,
+                galleryList: null,
+                page: 1
+            },
+            /**
+             * Image URL docs https://www.flickr.com/services/api/misc.urls.html
+             * @param {Object} photo Flickr Image object
+             * @param {String} size_suffix: "_b" or "_s" or others supported
+             * @return {String} url
+             */
+            _imageUrl: function (photo, size_suffix) {
+                return "https://farm"
+                    + photo.farm
+                    + ".staticflickr.com/"
+                    + photo.server
+                    + "/"
+                    + photo.id
+                    + "_"
+                    + photo.secret
+                    + size_suffix
+                    + ".jpg";
+            },
+
+            /**
+             * Generate gallery Url
+             * @param {String} tags
+             * @return {String} url
+             */
+            _galleryUrl: function (tags) {
+                return this.options.baseUrl
+                    + 'flickr.photos.search'
+                    + '&api_key='
+                    + this.options.apiKey
+                    + '&tags='
+                    + tags
+                    + '&per_page='
+                    + this.options.perPage
+                    + '&page='
+                    + this.state.page
+                    + '&format=json'
+                    + '&nojsoncallback=1';
+            },
+
+            /**
+             * Get gallery Image list array
+             * @param {String} gallery_url
+             * @return {Promise} with array of image objects {image:"",thumb:"",title,""}
+             */
+
+            _galleryData: function (gallery_url) {
+                let self = this;
+                return fetch(gallery_url)
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        console.log(data);
+                        let imageList = [];
+                        for (let i = 0; i < data.photos.photo.length; i++) {
+                            imageList.push({
+                                image: self._imageUrl(data.photos.photo[i], "_b"),
+                                thumb: self._imageUrl(data.photos.photo[i], "_s"),
+                                title: data.photos.photo[i].title
+                            });
+                        }
+                        return imageList;
+                    })
+                    .catch(function (e) {
+                        console.log('Network error' + e);
+                    });
+            },
+
+            /**
+             * Prepare HTML
+             * @param {Array} imageList
+             */
+            _prepareInnerHtml: function (galleryNode, imageList) {
+                // @formatter:off
+            let gallery = '',
+                images = '<li class="fg-galley-item fg-item-prev fg-blanc"></li>',
+                navigation = '',
+                thumbs = '',
+                lazyLoad ='',
+                extraClass ='';
+
+            for (let i = 0; i < imageList.length; i++) {
+                switch(i) {
+                    case 0:
+                        // First visible frame
+                        extraClass ='fg-active';
+                        lazyLoad ='';
+                        break;
+                    case 1:
+                        // Next prepared frame
+                        extraClass ='fg-item-next';
+                        lazyLoad ='';
+                        break;
+                    default:
+                        extraClass ='fg-collapsed';
+                        lazyLoad ='loading="lazy"';
+                }
+
+                // Image list HTML
+                images+= '<li class="fg-galley-item ' + extraClass +'" data-tile ="'+ imageList[i].title +'">' +
+                    '<img class="fg-picture" src="' + imageList[i].image + '" alt="'+ imageList[i].title + '"' + lazyLoad + '>'+
+                    '</li>';
+
+                // Thumbnail list HTML
+                if ( this.options.thumb === true &&  this.options.navigation === true){
+                    switch(i) {
+                        case 0:
+                            // First visible frame
+                            extraClass ='fg-active';
+                            break;
+                        default:
+                            extraClass ='';
+                    }
+                    thumbs+= '<li class="fg-nav-item">' +
+                        '<img class="fg-nav-image '+ extraClass +'" src="' + imageList[i].thumb + '" alt="'+ imageList[i].title + '" loading="lazy" >'+
+                        '</li>';
+                }
+            }
+
+            thumbs = '<ul class="fg-nav-list">' + thumbs + '</ul>';
+            if ( this.options.navigation === true){
+                navigation = '<span class="fg-btn-prev fn-btn-disabled"></span>' +
+                    '<span class="fg-btn-next"></span>' +
+                    '<div class="fg-nav-wrapper">' +
+                    thumbs +
+                    '</div>';
+            }
+
+            gallery = '<div class="fg-galley-wrapper">' +
+                '<ul class="fg-galley-list">' +
+                images +
+                '</ul>' +
+                '</div>' +
+                navigation;
+            // @formatter:on
+
+                galleryNode.innerHTML = gallery;
+            },
+
+            /**
+             * Animate thumb list movement, done for position change
+             * @param {Element} elem Dom Element object
+             * @param {Number} destinationSlide
+             */
+            _slideThumbs: function (elem, destinationSlide) {
+                elem.style.left = (destinationSlide * 100) + '%';
+                return destinationSlide;
+            },
+
+            /**
+             * Animate gallery list movement
+             * @param {Element} galleryElem Dom Element object
+             * @param {Number} destinationSlide
+             */
+            _slideGallery: function (galleryNode, destinationSlide) {
+                let selector = this.options.selectors,
+                    galleryList = galleryNode.querySelectorAll("." + selector.galleryItem),
+                    oldPrevious = galleryList[this.state.currentSlide - 1],
+                    oldNext = galleryList[this.state.currentSlide + 1],
+                    oldActive = galleryList[this.state.currentSlide],
+
+                    newPrevious = galleryList[destinationSlide - 1],
+                    newNext = galleryList[destinationSlide + 1],
+                    newActive = galleryList[destinationSlide];
+
+
+                if (destinationSlide < 1) {
+                    this.state.currentSlide = 1;
+                    return 1;
+                }
+
+                // Clean Previous structure
+                oldPrevious.replaceClass(selector.galleryPreviousItem,selector.collapsedItem);
+                oldNext.replaceClass(selector.galleryNextItem,selector.collapsedItem);
+                oldActive.replaceClass(selector.active,selector.collapsedItem);
+
+                //Build new structure
+
+                newPrevious.replaceClass(selector.collapsedItem,selector.galleryPreviousItem);
+                newNext.replaceClass(selector.collapsedItem,selector.galleryNextItem);
+                newActive.replaceClass(selector.collapsedItem,selector.active);
+
+                this.state.currentSlide = destinationSlide;
+                return destinationSlide;
+            },
+
+            /**
+             * Bind Events
+             */
+            _bindEvents: function (galleryNode) {
+                let self = this;
+                galleryNode.addEventListener('click', function (e) {
+                    if (hasClass(e.target, 'fg-btn-prev')) {
+                        console.log("Previous step");
+                        self._slideGallery(galleryNode, self.state.currentSlide - 1);
+                    } else if (hasClass(e.target, 'fg-btn-next')) {
+                        console.log("Next step");
+                        self._slideGallery(galleryNode, self.state.currentSlide + 1);
+                    }
+                }, false);
+            },
+
+            /**
+             * Prepare gallery
+             */
+            _createGallery: function (element) {
+                let self = this;
+                //console.log("Scoped var= " + attached);
+                // Load data and build HTML
+                self._galleryData(self._galleryUrl(self.options.tags))
+                    .then(images => {
+                        console.log(element);
+                        let galleryNode = element;
+                        self.state.galleryNode = element;
+                        self.options.galleryNode = element;
+                        console.log(self);
+                        // Decoration class
+                        galleryNode.classList.add(this.options.classToAdd);
+
+
+                        self.options.slideNumber = images.length;
+                        self._prepareInnerHtml(galleryNode, images);
+                        self.state.galleryList = galleryNode.querySelectorAll("." + self.options.selectors.galleryList);
+                        //Complete Decoration class
+                        galleryNode.classList.add(this.options.classToComplete);
+
+                        //Bind active elements events
+                        self._bindEvents(galleryNode);
+                    });
+            }
+        };
+    };
+
+
     /**
      * Merge defaults with user options
      * @param {Object} target Default settings
@@ -64,180 +308,42 @@
     };
 
     /**
-     * Helper Functions
-     * @param {String} baseUrl
-     * @param {String} apiKey
-     * @param {String} tags
-     * @return {String} url
-     * @private
-     */
-    function _galleryUrl(baseUrl, apiKey, tags) {
-        return baseUrl
-            + 'flickr.photos.search'
-            + '&api_key='
-            + apiKey
-            + '&tags='
-            + tags
-            + '&format=json'
-            + '&nojsoncallback=1';
-    }
-
-    /**
-     * Image URL docs https://www.flickr.com/services/api/misc.urls.html
-     * @param {Object} photo Flickr Image object
-     * @param {String} size_suffix: "_b" or "_s" or others supported
-     * @return {String} url
-     * @private
-     */
-    function _imageUrl(photo, size_suffix) {
-        return "https://farm"
-            + photo.farm
-            + ".staticflickr.com/"
-            + photo.server
-            + "/"
-            + photo.id
-            + "_"
-            + photo.secret
-            + size_suffix
-            + ".jpg";
-    }
-
-    /**
-     * Get gallery Image list array
-     * @param {String} gallery_url
-     * @return {Promise} with array of image objects {image:"",thumb:"",title,""}
-     * @private
-     */
-    function _galleryData(gallery_url) {
-        return fetch(gallery_url)
-            .then(function (response) {
-                return response.json();
-            })
-            .then(function (data) {
-                console.log(data);
-                let imageList = [];
-                for (let i = 0; i < data.photos.photo.length; i++) {
-                    imageList.push({
-                        image: _imageUrl(data.photos.photo[i], "_b"),
-                        thumb: _imageUrl(data.photos.photo[i], "_s"),
-                        title: data.photos.photo[i].title
-                    });
-                }
-                return imageList;
-            })
-            .catch(function () {
-                console.log('Network error');
-            });
-    }
-
-    /**
-     * Prepare HTML
-     * @param {Element} galleryNode Dom element
-     * @param {Array} imageList
-     * @param {Boolean} initNavigation
-     * @param {Boolean} initThumb
-     * @private
-     */
-    function _prepareInnerHtml(galleryNode, imageList, initNavigation, initThumb) {
-        let gallery = '',
-            images = '',
-            navigation = '',
-            thumbs = '';
-
-        // @formatter:off
-        for (let i = 0; i < imageList.length; i++) {
-            // Image list HTML
-            images+= '<li class="fg-galley-item">' +
-                        '<img class="fg-picture" src="' + imageList[i].image + '" alt="'+ imageList[i].title + '" loading="lazy" >'+
-                     '</li>';
-
-            // Thumbnail list HTML
-            if (initThumb === true && initNavigation === true){
-                thumbs+= '<li class="fg-nav-item">' +
-                            '<img class="fg-nav-image" src="' + imageList[i].thumb + '" alt="'+ imageList[i].title + '" loading="lazy" >'+
-                         '</li>';
-            }
-        }
-        thumbs = '<ul class="fg-nav-list">' + thumbs + '</ul>';
-        if (initNavigation === true){
-            navigation = '<span class="fg-btn-prev"></span>' +
-                         '<span class="fg-btn-next"></span>' +
-                         '<div class="fg-nav-wrapper">' +
-                             thumbs +
-                         '</div>';
-        }
-        gallery = '<div class="fg-galley-wrapper">' +
-                      '<ul class="fg-galley-list">' +
-                          images +
-                      '</ul>' +
-                  '</div>' +
-                navigation;
-        // @formatter:on
-
-        galleryNode.innerHTML = gallery;
-    }
-
-    /**
      * Helper to check class name
      * @param {Element} elem Dom Element object
      * @param {String} className
      * @private
      */
-    function _hasClass(elem, className) {
+    const hasClass = function (elem, className) {
         return elem.className.split(' ').indexOf(className) > -1;
-    }
+    };
 
     /**
-     * Helper to check class name
-     * @param {Element} elem Dom Element object
+     * Helper to add class name
      * @private
      */
-    function _slideGallery(elem, destinationSlide) {
-        elem.style.left = (destinationSlide * 100) + '%';
-        return destinationSlide
-    }
+    Element.prototype.replaceClass =  function (removeClass, addClass) {
+        this.classList.remove(removeClass);
+        this.classList.add(addClass);
+        return this;
+    };
 
     /**
-     * Bind Events
-     * @param {Element} galleryNode Element object
+     * Helper to add class name
      * @private
      */
-    function _bindEvents(galleryNode) {
-        galleryNode.addEventListener('click', function (e) {
-            if (_hasClass(e.target, 'fg-btn-prev')) {
-                console.log("Previous step");
-                galleryNode.querySelector(".fg-galley-list").style.left = '-100%';
-            } else if (_hasClass(e.target, 'fg-btn-next')) {
-                console.log("Next step");
-                galleryNode.querySelector(".fg-galley-list").style.left = '100%';
-            }
-        }, false);
-    }
+    Element.prototype.addClas =  function (addClass) {
+        this.classList.add(addClass);
+        return this;
+    };
 
     /**
-     * Prepare gallery
-     * @param {Object} options
-     * @param {Object} galleryNode
+     * Helper to remove class name
      * @private
      */
-    function _prepareGallery(options, galleryNode) {
-        // Load data and build HTML
-        _galleryData(_galleryUrl(options.BASEURL, options.apiKey, options.tags))
-            .then(images => {
-                // Decoration class
-                galleryNode.classList.add(options.classToAdd);
-
-                options.slideNumber = images.length;
-                _prepareInnerHtml(options, galleryNode, images, options.navigation, options.thumb);
-
-                //Complete Decoration class
-                galleryNode.classList.add(options.classToComplete);
-
-                //Bind active elements events
-                _bindEvents(galleryNode);
-            });
-    }
-
+    Element.prototype.removeClass =  function (removeClass) {
+        this.classList.remove(removeClass);
+        return this;
+    };
 
     /**
      * Plugin Object
@@ -256,14 +362,19 @@
      */
     Plugin.prototype = {
         init: function () {
+            let self = this;
             // find all matching DOM elements.
             // makes `.selectors` object available to instance.
-            this.selectors = document.querySelectorAll(this.options.selector);
-            for (let i = 0; i < this.selectors.length; i++) {
-                let galleryNode = this.selectors[i];
-                _prepareGallery(this.options, galleryNode);
-            }
-        }, // #! init
+            document.querySelectorAll(self.options.gallerySelector).forEach(function (element) {
+                let newGallery = Object.assign(new gallery, {options: self.options});
+                console.log(newGallery);
+                newGallery.state.galleryNode = element;
+                newGallery._createGallery(element);
+                //console.log(newGallery)
+            });
+        },
+
+        // #! init
         destroy: function () {
             // Remove any event listeners and undo any "init" actions here...
         },
@@ -281,7 +392,7 @@
 
 //// create new Plugin instance
 // let flickrGallery = new flickrGallerySlider({
-//     selector: ".my-gallery",
+//     gallerySelector: ".my-gallery",
 //     apiKey: "d730e1b0b485148747900002e7da1d08",
 //     tags: 'dogs'
 // })
