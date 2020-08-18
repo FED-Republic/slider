@@ -11,6 +11,73 @@
     // Use strict mode
     'use strict';
 
+    /**
+     * Merge defaults with user options
+     * @param {Object} target Default settings
+     * @param {Object} options User options
+     * @return {Object} merged objects
+     */
+    const extend = function (target, options) {
+        let prop, extended = {};
+        for (prop in defaults) {
+            if (Object.prototype.hasOwnProperty.call(defaults, prop)) {
+                extended[prop] = defaults[prop];
+            }
+        }
+        for (prop in options) {
+            if (Object.prototype.hasOwnProperty.call(options, prop)) {
+                extended[prop] = options[prop];
+            }
+        }
+        return extended;
+    };
+
+    /**
+     * Helper to check class name
+     * @param {Element} elem Dom Element object
+     * @param {String} className
+     * @return {Boolean} is class
+     * @private
+     */
+    const hasClass = function (elem, className) {
+        return elem.className.split(' ').indexOf(className) > -1;
+    };
+
+    /**
+     * Helper to replace class name
+     * @param {String} removeClass class name
+     * @param {String} addClass class name
+     * @return {Object} Element
+     * @private
+     */
+    Element.prototype.replaceClass = function (removeClass, addClass) {
+        this.classList.remove(removeClass);
+        this.classList.add(addClass);
+        return this;
+    };
+
+    /**
+     * Helper to add class name
+     * @param {String} addClass: class name
+     * @return {Object} Element
+     * @private
+     */
+    Element.prototype.addClass = function (addClass) {
+        this.classList.add(addClass);
+        return this;
+    };
+
+    /**
+     * Helper to remove class name
+     * @param {String} removeClass: class name
+     * @return {Object} Element
+     * @private
+     */
+    Element.prototype.removeClass = function (removeClass) {
+        this.classList.remove(removeClass);
+        return this;
+    };
+
     let defaults = {
         baseUrl: 'https://api.flickr.com/services/rest/?method=',
         apiKey: 'd730e1b0b485148747900002e7da1d08',
@@ -44,7 +111,6 @@
         }
     };
 
-
     let gallery = function () {
         return {
             state: {
@@ -53,7 +119,7 @@
                 galleryNode: null,
                 galleryListNode: null,
                 navigationListNode: null,
-                navigationNodes:[],
+                navigationNodes: [],
                 page: 1
             },
             /**
@@ -108,7 +174,6 @@
                         return response.json();
                     })
                     .then(function (data) {
-                        console.log(data);
                         let imageList = [];
                         for (let i = 0; i < data.photos.photo.length; i++) {
                             imageList.push({
@@ -127,6 +192,7 @@
             /**
              * Prepare Gallery and Navigation images
              * @param {Array} imageList
+             * @return {Number} amount of images
              */
 
             _addImages(imageList) {
@@ -184,10 +250,12 @@
 
                 // Update State
                 this.state.slidesNumber += imageList.length;
-                this.state.navigationNodes = this.state.navigationListNode.querySelectorAll('.'+ this.options.selectors.navItemClass);
+                this.state.navigationNodes = this.state.navigationListNode.querySelectorAll('.' + this.options.selectors.navItemClass);
+                return this.state.slidesNumber;
             },
             /**
              * Prepare HTML
+             * @param {Object} Dom element objects
              * @param {Array} imageList
              */
             _prepareInnerHtml: function (galleryNode, imageList) {
@@ -197,7 +265,7 @@
 
                 if ( this.options.navigation === true){
                     navigation = '<div class="fg-nav-wrapper">' +
-                                    '<ul class="fg-nav-list"></ul>';
+                                    '<ul class="fg-nav-list"></ul>' +
                                 '</div>';
                 }
 
@@ -232,7 +300,7 @@
                 if (wrapperW / 2 < destinationCenter && galleryW - destinationCenter > wrapperW / 2) {
                     position = -(destinationCenter - wrapperW / 2);
                     navigationGallery.style.left = position + "px";
-                } else if (galleryW - destinationCenter < wrapperW / 2){
+                } else if (galleryW - destinationCenter < wrapperW / 2) {
                     position = -(galleryW - wrapperW);
                     navigationGallery.style.left = position + "px";
                 }
@@ -296,33 +364,42 @@
                 this.state.currentSlide = destinationSlide;
 
                 //Check for more images
-                if( this.state.slidesNumber - this.state.currentSlide < this.options.preload.range){
+                if (this.state.slidesNumber - this.state.currentSlide < this.options.preload.range) {
                     this._updateGallery();
                 }
             },
 
+
             /**
              * Bind Events
+             * @param {Element} galleryNode Dom Element object
              */
             _bindEvents: function (galleryNode) {
                 let self = this;
+
+                window.addEventListener('resize', function (){
+                    console.log("current slide" + self.state.currentSlide);
+                    self._alignNaviagtion(self.state.currentSlide);
+                },false);
+
                 galleryNode.addEventListener('click', function (e) {
                     if (hasClass(e.target, 'fg-btn-prev')) {
-                        console.log("Previous step");
                         self._slideGallery(galleryNode, self.state.currentSlide - 1);
                     }
                     if (hasClass(e.target, 'fg-btn-next')) {
-                        console.log("Next step");
                         self._slideGallery(galleryNode, self.state.currentSlide + 1);
                     }
                     if (hasClass(e.target, 'fg-nav-item')) {
-                        console.log("Navigate to index");
                         self._slideGallery(galleryNode, Array.prototype.slice.call(self.state.navigationNodes).indexOf(e.target) + 1);
                     }
                 }, false);
             },
 
-            _initState(element, images) {
+            /**
+             * Bind Events
+             * @param {Element} galleryNode Dom Element object
+             */
+            _initState(element) {
                 this.state.galleryNode = element;
                 this.state.galleryListNode = element.querySelector("." + this.options.selectors.galleryList);
                 this.state.navigationListNode = element.querySelector("." + this.options.selectors.navListClass);
@@ -330,6 +407,7 @@
 
             /**
              * Prepare gallery
+             * @param {Element} galleryNode Dom Element object
              */
             _createGallery: function (element) {
                 let self = this;
@@ -338,7 +416,7 @@
                     .then(images => {
                         // Create gallery
                         self._prepareInnerHtml(element, images);
-                        self._initState(element, images);
+                        self._initState(element);
                         self._addImages(images);
 
                         //Bind active elements events
@@ -350,7 +428,7 @@
             },
 
             /**
-             * Update Gallery
+             * Update Gallery with new images
              */
 
             _updateGallery: function () {
@@ -365,65 +443,6 @@
         };
     };
 
-
-    /**
-     * Merge defaults with user options
-     * @param {Object} target Default settings
-     * @param {Object} options User options
-     */
-    const extend = function (target, options) {
-        let prop, extended = {};
-        for (prop in defaults) {
-            if (Object.prototype.hasOwnProperty.call(defaults, prop)) {
-                extended[prop] = defaults[prop];
-            }
-        }
-        for (prop in options) {
-            if (Object.prototype.hasOwnProperty.call(options, prop)) {
-                extended[prop] = options[prop];
-            }
-        }
-        return extended;
-    };
-
-    /**
-     * Helper to check class name
-     * @param {Element} elem Dom Element object
-     * @param {String} className
-     * @private
-     */
-    const hasClass = function (elem, className) {
-        return elem.className.split(' ').indexOf(className) > -1;
-    };
-
-    /**
-     * Helper to replace class name
-     * @private
-     */
-    Element.prototype.replaceClass = function (removeClass, addClass) {
-        this.classList.remove(removeClass);
-        this.classList.add(addClass);
-        return this;
-    };
-
-    /**
-     * Helper to add class name
-     * @private
-     */
-    Element.prototype.addClass = function (addClass) {
-        this.classList.add(addClass);
-        return this;
-    };
-
-    /**
-     * Helper to remove class name
-     * @private
-     */
-    Element.prototype.removeClass = function (removeClass) {
-        this.classList.remove(removeClass);
-        return this;
-    };
-
     /**
      * Plugin Object
      * @param {Object} options User options
@@ -431,6 +450,7 @@
      */
     function Plugin(options) {
         this.options = extend(defaults, options);
+        this.instanceReferences = [];
         this.init(); // Initialization Code Here
     }
 
@@ -442,25 +462,34 @@
     Plugin.prototype = {
         init: function () {
             let self = this;
-
             // find all matching DOM elements and create separate instance for every.
             document.querySelectorAll(self.options.gallerySelector).forEach(function (element) {
-                let newGallery = Object.assign(new gallery, {options: self.options});
+                let newGallery = Object.assign(new gallery(), {options: self.options});
+                self.instanceReferences.push(newGallery);
                 // Decoration class
                 element.addClass(self.options.classToAdd);
-
-                newGallery.state.galleryNode = element;
                 newGallery._createGallery(element);
             });
         },
 
-        // #! init
         destroy: function () {
-            // Remove any event listeners and undo any "init" actions here...
+            var self = this;
+            for(let i=0;i<self.instanceReferences.length; i++){
+                let galleryNode = self.instanceReferences[i].state.galleryNode;
+                self.instanceReferences[i].state.galleryNode.remove();
+                self.instanceReferences[i] = null;
+                delete self.instanceReferences[i];
+            }
+            delete self.instanceReferences;
+            delete self.options;
+            self = null;
         },
-        doSomething: function (someData) {
-            console.log(someData);
-        } // #! doSomething
+
+        extraClass: function (extraClass) {
+            document.querySelectorAll(this.options.gallerySelector).forEach(function (element) {
+                element.addClass(extraClass);
+            });
+        }
     };
     return Plugin;
 }));
@@ -469,6 +498,8 @@
 /**************
  EXAMPLE:
  **************/
+// Add empty div with "my-gallery" class name
+// <div class="my-gallery"></div>
 
 //// create new Plugin instance
 // let flickrGallery = new flickrGallerySlider({
@@ -478,4 +509,4 @@
 // })
 
 //// access public plugin methods
-// flickrGallery.publicMethod("Doing Something")
+// flickrGallery.extraClass("custom-class");
