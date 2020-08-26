@@ -104,14 +104,14 @@ var cleanDist = function (done) {
 
 // Repeated JavaScript tasks
 var jsTasks = lazypipe()
-	// .pipe(plumber)
-	// .pipe(babel, {
-	// 	presets: [
-	// 		['@babel/env', {
-	// 			modules: false
-	// 		}]
-	// 	]
-	// })
+	.pipe(plumber)
+	.pipe(babel, {
+		presets: [
+			['@babel/env', {
+				modules: false
+			}]
+		]
+	})
 	.pipe(header, banner.main, {package: package})
 	.pipe(optimizejs)
 	.pipe(dest, paths.scripts.output)
